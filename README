@@ -1,0 +1,57 @@
+                              -------------------
+                              Authen::Ticket 0.01
+                              -------------------
+
+Authen::Ticket provides the framework for implementing a ticketing system 
+for web authentication.  Both the client website and ticket server code 
+can be constructed from Authen::Ticket.  The current version requires
+cookies to operate correctly.
+
+The framework allows for customization at all phases in the process.  This
+includes not only the login screens, but the cookie creation and optional
+digital signature algorithm as well.
+
+The ticket signature code (Authen::Ticket::Signature) allows for
+signature creation and verification of tickets as well as a handler to
+provide a key server.
+
+The code is split into four components:
+
+    Authen::Ticket             mod_perl handler for both server and client
+    Authen::Ticket::Server     base ticket server code
+    Authen::Ticket::Client     base ticket client code
+    Authen::Ticket::Signature  base code for providing signed tickets
+
+To install, simply type
+
+     $ perl Makefile.PL
+     $ make
+     $ make install
+
+The Server/Client code requires the following modules:
+
+     CGI
+     CGI::Cookie
+     MIME::Base64
+     Carp
+
+The mod_perl handler requires the following modules:
+
+     Apache
+     Apache::URI
+
+The digital signature code requires the following modules:
+
+     OpenSSL
+     Apache::File
+
+----
+BUGS
+----
+
+o Tickets must not expire during a POST.  This will cause all POST
+  data to tbe lost.
+
+o Shared memory support is not robust enough.  Certain conditions
+  can cause the server to enter an endless cycle of child destruction
+  and creation.
