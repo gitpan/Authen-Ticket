@@ -1,4 +1,4 @@
-# $Id: Signature.pm,v 1.6 1999/11/11 04:29:37 jgsmith Exp $
+# $Id: Signature.pm,v 1.9 1999/11/16 19:36:35 jgsmith Exp $
 #
 # Copyright (c) 1999, Texas A&M University
 # All rights reserved.
@@ -35,7 +35,7 @@ use OpenSSL;
 use vars (qw/$VERSION %DEFAULTS @ISA %Keys/);
 
 @ISA = ( );
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 %DEFAULTS = (
   TicketSignatureKeyLength => 512,
@@ -46,7 +46,7 @@ $VERSION = '0.01';
 sub tie_keys {
   unless(tied %Keys or not defined $IPC::Shareable::VERSION) {
     tie(%Keys, 'IPC::Shareable', 'dkfj', {  # random glue...
-                                mode => 0644,
+                                mode => 0600,  # a bit more secure
                                 destroy => 'no',
                                 exclusive => 'no',
                                 create => 'yes',
@@ -111,8 +111,6 @@ sub get_private_key {
     return $private;
   }
 
-  my $p_bits = $self->{TicketSignatureKeyLength};
-
   my($private, $public) = 
        $self->generate_key($self->{TicketSignatureKeyLength});
 
@@ -123,7 +121,7 @@ sub get_private_key {
                         keys %$public ) };
 
 
-  $Keys{$id} = { Private => { %{$hprivate} }, Public => { %{$hpublic} } };
+  $Keys{$id} = { Private => $hprivate, Public => $hpublic };
 
 
   return $private;
@@ -179,17 +177,27 @@ sub verify_ticket {
 
   my($a, $b, $omsg) = split(/:/, $ticket, 3);
 
+  return '' unless $a && $b;
+
   my $msg = OpenSSL::BN::hex2bn(MD5->hexhash($omsg));
 
   $a = OpenSSL::BN::hex2bn($a);
   $b = OpenSSL::BN::hex2bn($b);
 
   my($y, $p, $g) = map OpenSSL::BN::hex2bn($public_key->{$_}), (qw/y p g/);
+  #my($y, $p, $g) = map $public_key->{$_}, (qw/y p g/);
   $self->debug("y -> $y");
+  $self->debug("p -> $p");
+  $self->debug("g -> $g");
+  $self->debug("a -> $a");
+  $self->debug("b -> $b");
 
   my $lhs = $a->mod_exp( $b, $p );
+  $self->debug("lhs -> $lhs");
   $lhs = $y->mod_exp( $a, $p)->mod_mul( $lhs, $p );
+  $self->debug("lhs -> $lhs");
   my $rhs = $g->mod_exp( $msg, $p );
+  $self->debug("rhs -> $rhs");
 
   return $omsg if $lhs == $rhs;
   return '';

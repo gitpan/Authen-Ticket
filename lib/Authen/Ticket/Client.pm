@@ -1,4 +1,4 @@
-# $Id: Client.pm,v 1.4 1999/11/11 03:25:25 jgsmith Exp $
+# $Id: Client.pm,v 1.7 1999/11/18 21:11:41 jgsmith Exp $
 #
 # Copyright (c) 1999, Texas A&M University
 # All rights reserved.
@@ -33,14 +33,17 @@ use strict;
 
 use vars (qw/$VERSION %DEFAULTS @ISA/);
 
-use CGI ();
-use CGI::Cookie ();
 use MIME::Base64 (qw/decode_base64/);
 
 use Carp;
 
-@ISA = (qw/Apache/);
-$VERSION = '0.01';
+if($ENV{MOD_PERL}) {
+  @ISA = (qw/Apache/);
+} else {
+  @ISA = ( );
+}
+
+$VERSION = '0.02';
 
 %DEFAULTS = (
   TicketDomain => undef,
@@ -62,10 +65,10 @@ sub new {
   $class = ref($class) || $class;
   my $r;
   my $self = { };
+  my $cookies;
 
   bless $self, $class;
 
-  print "MOD_PERL: [$ENV{MOD_PERL}]\n";
   if($ENV{MOD_PERL}) {
     $r = shift;
     unless(ref $r) {
@@ -75,19 +78,34 @@ sub new {
     $r ||= Apache->request;
     $self->{_r} = $r;
     $self->{_log} = $r->log;
-    $ENV{HTTP_COOKIE} ||= $r->headers_in->{Cookie};
+    $cookies = $r->headers_in->{Cookie};
+  } else {
+    $cookies = $ENV{HTTP_COOKIE};
   }
 
-  $self->{query} = new CGI({ });
+  my @cookies = split(/;\s*/, $cookies);
 
   $self->configure(@_);
 
   $self->initialize;
 
   $self->debug("Getting ticket: $$self{TicketName}");
-  my $ticket = $$self{query}->cookie($$self{TicketName});
+  my $ticket;
+  my $ticket_name = $$self{TicketName};
 
-  $self->debug("Cookies: [$ENV{HTTP_COOKIE}]");
+  while(@cookies && !$ticket) {
+    my $t = shift @cookies;
+    $self->debug("Considering [$t]");
+    my($k, $v) = split(/=/, $t, 2);
+    $k =~ s{%(..)}{chr(hex($1))}ge;
+    $self->debug("$k => [$v]");
+    next unless $k eq $$self{TicketName};
+    $v =~ s{%(..)}{chr(hex($1))}ge;
+    $ticket = $v;
+  }
+
+  $self->debug("Cookies: [$cookies]");
+  $self->debug("Ticket: [$ticket]");
   
   #
   # provide automatic signature verification if available...

@@ -2,7 +2,6 @@ Changes
 MANIFEST
 MANIFEST.SKIP
 Makefile.PL
-Makefile.old
 README
 lib/Authen/Ticket.pm
 lib/Authen/Ticket/Client.pm

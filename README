@@ -1,5 +1,5 @@
                               -------------------
-                              Authen::Ticket 0.01
+                              Authen::Ticket 0.02
                               -------------------
 
 Authen::Ticket provides the framework for implementing a ticketing system 
@@ -15,6 +15,12 @@ The ticket signature code (Authen::Ticket::Signature) allows for
 signature creation and verification of tickets as well as a handler to
 provide a key server.
 
+The Authen::Ticket::Server class will work with either CGI or CGI::WeT.  
+With CGI::WeT installed, the pages presented will have a similar appearance 
+to the rest of the website using CGI::WeT without modifying the sub-class
+of Authen::Ticket::Server.  This is only true with CGI::WeT version 0.71
+or greater.
+
 The code is split into four components:
 
     Authen::Ticket             mod_perl handler for both server and client
@@ -28,30 +34,24 @@ To install, simply type
      $ make
      $ make install
 
-The Server/Client code requires the following modules:
+The following module dependencies exist:
 
-     CGI
-     CGI::Cookie
-     MIME::Base64
-     Carp
+Module         Authen::Ticket   ::Server   ::Client   ::Signature
+------         --------------   --------   --------   -----------
+Apache               X
+Apache::File                                               X
+Apache::URI          X
 
-The mod_perl handler requires the following modules:
+Carp                                X          X
+CGI                                 X
+CGI::Cookie          X              X          
 
-     Apache
-     Apache::URI
-
-The digital signature code requires the following modules:
-
-     OpenSSL
-     Apache::File
+MIME::Base64                        X          X
+OpenSSL                                                    X
 
 ----
 BUGS
 ----
 
 o Tickets must not expire during a POST.  This will cause all POST
-  data to tbe lost.
-
-o Shared memory support is not robust enough.  Certain conditions
-  can cause the server to enter an endless cycle of child destruction
-  and creation.
+  data to be lost.

@@ -1,4 +1,4 @@
-# $Id: Ticket.pm,v 1.4 1999/11/11 03:25:24 jgsmith Exp $
+# $Id: Ticket.pm,v 1.8 1999/11/18 21:22:32 jgsmith Exp $
 #
 # Copyright (c) 1999, Texas A&M University
 # All rights reserved.
@@ -32,10 +32,11 @@ package Authen::Ticket;
 use Apache ();
 use Apache::Constants (qw/OK DECLINED FORBIDDEN/);
 use Apache::URI ();
+use CGI::Cookie ();
 
 use vars (qw#$VERSION @ISA#);
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 @ISA = ( );
 
 sub handler ($$) {
@@ -49,6 +50,7 @@ sub handler ($$) {
 
   if($r->current_callback eq "PerlHandler" ||
      $r->current_callback eq "PerlFixupHandler") {
+    my $cclass = "$class\:\:Client";
     $class .= "::Server";
     my $self = $class->new($r);
 
@@ -60,6 +62,24 @@ sub handler ($$) {
     }
 
     my $userinfo = $self->get_userinfo;
+
+    unless($$userinfo{user} || $$userinfo{security}) {
+      my $client = $cclass->new($r);
+      if($client->{ticket}) {
+        $userinfo->{security} = 'strong';
+        if($client->{ticket}->{ip}) {
+          my(@bip) = split('.', $client->{ticket}->{ip});
+ 
+          if(($bip[0] < 128 && !($bip[1] || $bip[2] || $bip[3]))
+           ||($bip[0] < 192 && !(           $bip[2] || $bip[3]))
+           ||($bip[0] < 224 && !(                      $bip[3])))
+            { $userinfo->{security} = 'med'; }
+        } else {
+          $userinfo->{security} = 'weak';
+        }
+        $userinfo->{user} = $client->{ticket}->{uid};
+      }
+    }
 
     unless($$userinfo{user} && $$userinfo{password}) {
       $self->no_user_password_error;
@@ -164,6 +184,8 @@ sub handler ($$) {
 
       $log->debug("Ticket `request_uri' being set to `" .
                   $uri->unparse . "'");
+
+      # read in content if it exists...  even for a GET
   
       $self->err_headers_out->add('Set-Cookie' =>
         CGI::Cookie->new(-name => 'request_uri',
@@ -175,8 +197,7 @@ sub handler ($$) {
       return FORBIDDEN;
     }
 
-    $r->connection->user($dticket->{uid});
-    $r->subprocess_env->{REMOTE_USER} = $self->{ticket}->{uid};
+    $r->connection->user($self->{ticket}->{uid});
     return OK;
   } else {
     return DECLINED;

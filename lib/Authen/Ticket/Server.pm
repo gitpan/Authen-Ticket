@@ -1,4 +1,4 @@
-# $Id: Server.pm,v 1.5 1999/11/11 03:30:06 jgsmith Exp $
+# $Id: Server.pm,v 1.8 1999/11/18 21:22:33 jgsmith Exp $
 #
 # Copyright (c) 1999, Texas A&M University
 # All rights reserved.
@@ -37,7 +37,7 @@ use MIME::Base64 (qw/encode_base64/);
 use Carp;
 
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 @ISA = (qw/Apache/);
 
 %DEFAULTS = (
@@ -148,13 +148,14 @@ sub initialize { }
 sub get_query_object {
   my $self = shift;
 
-  return $$self{query} || new CGI;
+  return $$self{query} || $CGI::DefaultClass->new;
 }
 
 sub get_stdout_object {
   my $self = shift;
 
-  return $$self{stdout} || ($$self{_r} ? $self : "STDOUT");
+  return $$self{stdout} || tied *STDOUT;
+  #return $$self{stdout} || ($$self{_r} ? $self : "STDOUT");
 }
 
 sub no_cookie_error {
@@ -167,6 +168,7 @@ sub no_cookie_error {
     $query->header(),
     $self->no_cookie_error_message($string)
   );
+  CGI::WeT->show_page if defined $CGI::WeT::VERSION;
 }
 
 sub no_cookie_error_message {
@@ -196,6 +198,7 @@ sub no_user_password_error {
     $query->header,
     $self->no_user_password_error_message($string)
   );
+  CGI::WeT->show_page if defined $CGI::WeT::VERSION;
 }
 
 sub no_user_password_error_message {
@@ -219,7 +222,7 @@ sub no_user_password_error_message {
                                                         ' minutes'])),
           $q->Tr($q->td(['Security', $q->popup_menu(
                            -name => 'security',
-                           -values => [qw(strong med weak)],
+                           '-values' => [qw(strong med weak)],
                            -default => 'strong',
                            -labels => {qw(strong Strong med Medium weak Weak)},
                          ) ] ) )
@@ -232,10 +235,10 @@ You must set your browser to accept cookies in order for login
 to succeed.  You will be asked to log in again after some period 
 of time has elapsed.
 <p>
-Strong security is recommended for browsers within the Texas A&amp;M
-University firewall or any other browser not using a proxy.  Weak security
-is only recommended when the browser is going through different proxies on
-different networks.  Use the strongest security that will allow access.
+Strong security is recommended for any browser not using a proxy.  Weak 
+security is only recommended when the browser is going through different 
+proxies on different networks.  Use the strongest security that will allow 
+access.
 </p>
 1HERE1
 
@@ -305,6 +308,7 @@ sub go_to_url {
      $query->header(-refresh => "1; URL=$request_uri", -cookie => $cookie),
      $self->go_to_url_message
   );
+  CGI::WeT->show_page if defined $CGI::WeT::VERSION;
 }
 
 sub go_to_url_message {
@@ -316,7 +320,6 @@ sub go_to_url_message {
     $q->start_html(-title => 'Successfully Authenticated', -bgcolor => 'white'),
     $q->h1('Congratulations'),
     $q->h2('You have successfully authenticated'),
-    $q->h3('Please stand by...'),
     "If your browser does not automatically take you to the page you ",
     "selected, <a href=\"$request_uri\">Click here</a>.",
     $q->end_html()
@@ -456,7 +459,7 @@ HTML.  This must be CGI or another class that implements the CGI interface
 (e.g., a sub-class of CGI).  
 
 The default implementation will return a
-valid CGI object.
+valid CGI object of type $CGI::DefaultClass.
 
 This routine is used in the object constructor to initialize part of the
 object.
@@ -467,7 +470,7 @@ This subroutine returns an object to be used as STDOUT.  This must support
 the $o->print() syntax.  
 
 The default implementation will return the
-current Apache object.
+object to which STDOUT is tied (usually Apache->request object).
 
 This routine is used in the object constructor to initialize part of the
 object.
